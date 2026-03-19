@@ -41,7 +41,7 @@ python chmi_temperature_downloader.py
 ## What the Script Does
 
 ### 1. **Directory Setup**
-   - Creates `C:\temp\Data\Temperature` directory if it doesn't exist
+   - Creates `temp/Data\Temperature` directory if it doesn't exist
 
 ### 2. **Web Scraping**
    - Fetches: `https://opendata.chmi.cz/meteorology/climate/historical_csv/data/monthly/temperature/`
@@ -63,7 +63,7 @@ Edit the script to customize:
 
 ```python
 # Change target directory
-TEMP_DIR = r"C:\temp\Data\Temperature"
+TEMP_DIR = r"temp/Data\Temperature"
 
 # Customize User-Agent header
 HEADERS = {
@@ -78,7 +78,7 @@ HEADERS = {
 CHMI TEMPERATURE CSV DOWNLOADER AND INDIVIDUAL ZIPPER
 ============================================================
 
-✓ Directory ensured: C:\temp\Data\Temperature
+✓ Directory ensured: temp/Data\Temperature
 → Fetching temperature index page: https://opendata.chmi.cz/meteorology/climate/historical_csv/data/monthly/temperature/
   Found: station001T.csv
   Found: station002T.csv
@@ -99,13 +99,13 @@ DOWNLOADING AND INDIVIDUALLY ZIPPING 3 TEMPERATURE CSV FILES
 ✓ TEMPERATURE DATA WORKFLOW COMPLETED SUCCESSFULLY
 ============================================================
 
-All temperature files individually zipped in: C:\temp\Data\Temperature
+All temperature files individually zipped in: temp/Data\Temperature
 ```
 
 ## File Structure After Running
 
 ```
-C:\temp\Data\Temperature\
+temp/Data\Temperature\
 ├── station001T.zip     (contains station001T.csv)
 ├── station002T.zip     (contains station002T.csv)
 ├── station003T.zip     (contains station003T.csv)
@@ -135,10 +135,10 @@ The script handles these scenarios gracefully:
 
 **Permission denied errors?**
 - Run as Administrator
-- Ensure C:\temp\Data\Temperature is accessible
+- Ensure temp/Data\Temperature is accessible
 
 **ZIP files not created?**
-- Verify downloads were successful (check C:\temp\Data\Temperature)
+- Verify downloads were successful (check temp/Data\Temperature)
 - Ensure sufficient disk space for the ZIP files
 
 **Module not found errors?**

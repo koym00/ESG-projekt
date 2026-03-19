@@ -24,13 +24,14 @@ import os
 from datetime import datetime, timedelta
 import folium
 from streamlit_folium import st_folium
+import povodne
 
 # Configuration
-ZIP_PATH = r"C:\temp\Metadata\meta1.zip"
+ZIP_PATH = "temp/Metadata/meta1.zip"
 CSV_FILENAME = "meta1.csv"
-META2_ZIP_PATH = r"C:\temp\Metadata\meta2.zip"
+META2_ZIP_PATH = "temp/Metadata/meta2.zip"
 META2_CSV_FILENAME = "meta2.csv"
-TEMPERATURE_DIR = r"C:\temp\Data\Temperature"
+TEMPERATURE_DIR = "temp/Data/Temperature"
 
 # Google Street View Configuration
 # Set your Google Maps API key here if you have one
@@ -708,11 +709,15 @@ def main():
                 # Calculate temperature statistics
                 avg_temp = calculate_5year_average_temperature(nearest['wsi_code'])
                 heating_stats = calculate_heating_engineering_stats(nearest['wsi_code'])
+                
+                # ZAVOLÁNÍ TVÉ FUNKCE:
+                je_pod_vodou = povodne.zkontroluj_povoden(user_lat, user_lon, "D03_ZaplUzemi100Vody.shp")
 
                 st.session_state.analysis = {
                     'nearest': nearest,
                     'avg_temp': avg_temp,
-                    'heating_stats': heating_stats
+                    'heating_stats': heating_stats,
+                    'povoden': je_pod_vodou  # <-- ULOŽENÍ VÝSLEDKU
                 }
 
             else:
@@ -727,7 +732,12 @@ def main():
             avg_temp = st.session_state.analysis['avg_temp']
             heating_stats = st.session_state.analysis['heating_stats']
 
-            st.success("✅ Analysis complete!")
+            st.subheader("🌊 Environmentální ESG Riziko (Povodně)")
+            if st.session_state.analysis['povoden']:
+                st.error("🔴 POZOR: Budova leží ve 100leté záplavové oblasti (Q100)! Vysoké ESG riziko.")
+            else:
+                st.success("🟢 BEZPEČNO: Budova leží mimo záplavovou oblast Q100.")
+            st.markdown("---")
 
             # Station information
             col1, col2, col3 = st.columns(3)

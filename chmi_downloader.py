@@ -4,7 +4,7 @@ CHMI Metadata CSV Downloader and Archiver
 This script automates the following workflow:
 1. Scrapes links from the CHMI meteorology index page
 2. Filters for CSV files
-3. Downloads them to C:\temp with progress messages
+3. Downloads them to temp with progress messages
 4. Compresses all CSVs into a single zip archive
 5. Handles errors gracefully with try-except blocks
 """
@@ -20,7 +20,7 @@ from typing import List
 
 # Configuration
 INDEX_URL = "https://opendata.chmi.cz/meteorology/climate/historical_csv/metadata/"
-TEMP_DIR = r"C:\temp\Metadata"
+TEMP_DIR = "temp/Metadata"
 
 # User-Agent header to avoid being blocked
 HEADERS = {
@@ -29,7 +29,7 @@ HEADERS = {
 
 
 def ensure_temp_directory():
-    """Ensure the C:\temp directory exists."""
+    """Ensure the temp directory exists."""
     try:
         Path(TEMP_DIR).mkdir(parents=True, exist_ok=True)
         print(f"✓ Directory ensured: {TEMP_DIR}")
