@@ -15,7 +15,7 @@ from pathlib import Path
 MAPY_K_STAZENI = {
     "Q5": "https://heis.vuv.cz/data/webmap/datovesady/isvs/ZaplavUzemi/E_ISVS$ZAPL_UZ5.zip",
     "Q20": "https://heis.vuv.cz/data/webmap/datovesady/isvs/ZaplavUzemi/E_ISVS$ZAPL_UZ20.zip",
-    "Q100": "https://heis.vuv.cz/data/webmap/datovesady/isvs/ZaplavUzemi/E_ISVS$ZAPL_UZ100.zippython"
+    "Q100": "https://heis.vuv.cz/data/webmap/datovesady/isvs/ZaplavUzemi/E_ISVS$ZAPL_UZ100.zip"
 }
 
 TEMP_DIR = "temp"
