@@ -41,7 +41,7 @@ python chmi_downloader.py
 ## What the Script Does
 
 ### 1. **Directory Setup**
-   - Creates `C:\temp` directory if it doesn't exist
+   - Creates `temp` directory if it doesn't exist
 
 ### 2. **Web Scraping**
    - Fetches: `https://opendata.chmi.cz/meteorology/climate/historical_csv/metadata/`
@@ -63,7 +63,7 @@ Edit the script to customize:
 
 ```python
 # Change target directory
-TEMP_DIR = r"C:\temp"
+TEMP_DIR = r"temp"
 
 # Customize User-Agent header
 HEADERS = {
@@ -90,7 +90,7 @@ The script handles these scenarios gracefully:
 CHMI METADATA CSV DOWNLOADER AND INDIVIDUAL ZIPPER
 ============================================================
 
-✓ Directory ensured: C:\temp
+✓ Directory ensured: temp
 → Fetching index page: https://opendata.chmi.cz/meteorology/climate/historical_csv/metadata/
   Found: meta1.csv
   Found: meta2.csv
@@ -113,13 +113,13 @@ DOWNLOADING AND INDIVIDUALLY ZIPPING 4 CSV FILES
 ✓ WORKFLOW COMPLETED SUCCESSFULLY
 ============================================================
 
-All files individually zipped in: C:\temp
+All files individually zipped in: temp
 ```
 
 ## File Structure After Running
 
 ```
-C:\temp\
+temp/
 ├── meta1.zip     (contains meta1.csv)
 ├── meta2.zip     (contains meta2.csv)
 ├── meta3.zip     (contains meta3.csv)
@@ -154,7 +154,7 @@ CREATING ZIP ARCHIVE
 ✓ WORKFLOW COMPLETED SUCCESSFULLY
 ============================================================
 
-Archive location: C:\temp\chmi_metadata_archive.zip
+Archive location: temp/chmi_metadata_archive.zip
 ```
 
 ## Cleanup Options Explained
@@ -178,10 +178,10 @@ Archive location: C:\temp\chmi_metadata_archive.zip
 
 **Permission denied errors?**
 - Run as Administrator
-- Ensure C:\temp is accessible
+- Ensure temp is accessible
 
 **ZIP files not created?**
-- Verify downloads were successful (check C:\temp)
+- Verify downloads were successful (check temp)
 - Ensure sufficient disk space for the ZIP files
 
 **Module not found errors?**

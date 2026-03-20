@@ -4,7 +4,7 @@ CHMI Temperature CSV Downloader and Individual Zipper
 This script automates the following workflow:
 1. Scrapes links from the CHMI daily temperature data index page
 2. Filters for CSV files ending with 'T.csv'
-3. Downloads them to C:\temp\Data\Temperature with progress messages
+3. Downloads them to temp/Data\Temperature with progress messages
 4. Individually compresses each CSV into its own ZIP archive
 5. Handles errors gracefully with try-except blocks
 """
@@ -20,7 +20,7 @@ from typing import List
 
 # Configuration
 INDEX_URL = "https://opendata.chmi.cz/meteorology/climate/historical_csv/data/daily/temperature/"
-TEMP_DIR = r"C:\temp\Data\Temperature"
+TEMP_DIR = "temp/Data/Temperature"
 
 # User-Agent header to avoid being blocked
 HEADERS = {

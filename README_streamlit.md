@@ -38,11 +38,11 @@ A Streamlit web application for finding the nearest meteorological station that 
 The application requires CHMI meteorological data to be downloaded and organized as follows:
 
 1. **Metadata**: Download station metadata and save as:
-   - `C:\temp\Metadata\meta1.zip` (containing meta1.csv)
-   - `C:\temp\Metadata\meta2.zip` (containing meta2.csv)
+   - `temp/Metadata\meta1.zip` (containing meta1.csv)
+   - `temp/Metadata\meta2.zip` (containing meta2.csv)
 
 2. **Temperature Data**: Download temperature data and save as:
-   - `C:\temp\Data\Temperature\dly-{WSI_CODE}-T.zip` (containing dly-{WSI_CODE}-T.csv)
+   - `temp/Data\Temperature\dly-{WSI_CODE}-T.zip` (containing dly-{WSI_CODE}-T.csv)
 
 ## Google Street View Configuration
 

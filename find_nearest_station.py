@@ -5,14 +5,6 @@ This script finds the nearest meteorological station that measures temperature b
 user-provided geographic coordinates, calculates the 5-year average temperature, and
 computes comprehensive heating engineering statistics. Results are displayed in the
 terminal and on an interactive map.
-
-Requirements:
-- Input: User provides Latitude (GEOGR2) and Longitude (GEOGR1)
-- Metadata: C:\\temp\\Metadata\\meta1.zip (station locations) and meta2.zip (capabilities)
-- Temperature: C:\\temp\\Data\\Temperature\\dly-{WSI}-T.zip containing temperature data
-- Filtering: Only active stations (END_DATE starts with "3999") that measure temperature (EG_EL_ABBREVIATION = "T")
-- Calculations: Monthly averages, heating season characteristics, heating degree days, design outdoor temperature
-- Output: Nearest temperature-measuring station details with distance, 5-year temperature average, heating engineering statistics, and interactive map
 """
 
 import zipfile
@@ -26,12 +18,12 @@ import folium
 import webbrowser
 import pandas as pd
 
-# Configuration
-ZIP_PATH = r"C:\temp\Metadata\meta1.zip"
+# Configuration (OPRAVENO PRO MAC)
+ZIP_PATH = "temp/Metadata/meta1.zip"
 CSV_FILENAME = "meta1.csv"
-META2_ZIP_PATH = r"C:\temp\Metadata\meta2.zip"
+META2_ZIP_PATH = "temp/Metadata/meta2.zip"
 META2_CSV_FILENAME = "meta2.csv"
-TEMPERATURE_DIR = r"C:\temp\Data\Temperature"
+TEMPERATURE_DIR = "temp/Data/Temperature"
 
 # Earth's radius in kilometers
 EARTH_RADIUS_KM = 6371
