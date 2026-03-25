@@ -16,6 +16,7 @@ from streamlit_folium import st_folium
 import povodne
 import geopandas as gpd
 from shapely.geometry import Point
+import ruian_api
 
 # Configuration
 ZIP_PATH = "temp/Metadata/meta1.zip"
@@ -30,9 +31,8 @@ MAPA_Q20 = "temp/D02_ZaplUzemi20vody.shp"
 MAPA_Q100 = "temp/D03_ZaplUzemi100vody.shp"
 
 # Google Street View Configuration
-GOOGLE_MAPS_API_KEY = "dopln"  # Replace with your API key or leave as None for fallback
+GOOGLE_MAPS_API_KEY = "AIzaSyCiGoJ6R6ftPoO6WMdvPWuSkV7jWgecxJg"  # Replace with your API key or leave as None for fallback
 EARTH_RADIUS_KM = 6371
-
 
 @st.cache_data
 def load_temperature_stations():
@@ -53,7 +53,6 @@ def load_temperature_stations():
     except Exception as e:
         st.warning(f"Error reading temperature capability data: {e}. Proceeding without filtering.")
     return temperature_stations
-
 
 @st.cache_data
 def load_station_metadata(temperature_stations):
@@ -87,7 +86,6 @@ def load_station_metadata(temperature_stations):
         return []
     return stations
 
-
 def haversine_distance(lat1, lon1, lat2, lon2):
     lat1_rad, lon1_rad = math.radians(lat1), math.radians(lon1)
     lat2_rad, lon2_rad = math.radians(lat2), math.radians(lon2)
@@ -96,7 +94,6 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     a = math.sin(dlat / 2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2)**2
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return EARTH_RADIUS_KM * c
-
 
 def find_nearest_station(user_lat, user_lon, stations):
     if not stations: return None
@@ -109,7 +106,6 @@ def find_nearest_station(user_lat, user_lon, stations):
             nearest_station = station.copy()
             nearest_station['distance'] = distance
     return nearest_station
-
 
 def load_temperature_dataframe(wsi_code):
     zip_path = os.path.join(TEMPERATURE_DIR, f"dly-{wsi_code}-T.zip")
@@ -139,12 +135,10 @@ def load_temperature_dataframe(wsi_code):
                 return df
     except Exception: return None
 
-
 def calculate_monthly_averages(df):
     if df is None or df.empty: return {month: None for month in range(1, 13)}
     monthly_avg = df.groupby(df['Date'].dt.month)['Temperature'].mean()
     return {month: monthly_avg.get(month, None) for month in range(1, 13)}
-
 
 def calculate_heating_season_characteristics(df):
     if df is None or df.empty: return {'heating_days': None, 'heating_season_avg_temp': None}
@@ -174,7 +168,6 @@ def calculate_heating_season_characteristics(df):
     avg_heating_temp = sum(s['avg_temp'] for s in stats if s['avg_temp'] is not None) / len([s for s in stats if s['avg_temp'] is not None])
     return {'heating_days': avg_heating_days, 'heating_season_avg_temp': avg_heating_temp}
 
-
 def calculate_heating_degree_days(df):
     if df is None or df.empty: return None
     df = df.set_index('Date').sort_index()
@@ -196,7 +189,6 @@ def calculate_heating_degree_days(df):
     if len(df_hdd.index.year.unique()) == 0: return None
     return float(hdd_values.groupby(hdd_values.index.year).sum().mean())
 
-
 def calculate_design_outdoor_temperature(df):
     if df is None or df.empty: return None
     yearly_min_3day_avgs = []
@@ -206,7 +198,6 @@ def calculate_design_outdoor_temperature(df):
         yearly_min_3day_avgs.append(rolling_3day.min())
     if yearly_min_3day_avgs: return sum(yearly_min_3day_avgs) / len(yearly_min_3day_avgs)
     return None
-
 
 def calculate_heating_engineering_stats(wsi_code):
     df = load_temperature_dataframe(wsi_code)
@@ -219,7 +210,6 @@ def calculate_heating_engineering_stats(wsi_code):
         'design_temperature': calculate_design_outdoor_temperature(df)
     }
 
-
 def calculate_5year_average_temperature(wsi_code):
     df = load_temperature_dataframe(wsi_code)
     if df is None or df.empty: return None
@@ -229,9 +219,8 @@ def calculate_5year_average_temperature(wsi_code):
     if recent_data.empty: return None
     return recent_data['Temperature'].mean()
 
-
 def create_street_view_component(lat, lon):
-    if GOOGLE_MAPS_API_KEY and GOOGLE_MAPS_API_KEY != "dopln":
+    if GOOGLE_MAPS_API_KEY:
         streetview_url = f"https://www.google.com/maps/embed/v1/streetview?key={GOOGLE_MAPS_API_KEY}&location={lat},{lon}"
         components.iframe(streetview_url, width=800, height=300, scrolling=False)
     else:
@@ -248,7 +237,6 @@ def create_street_view_component(lat, lon):
             </div>
             """, unsafe_allow_html=True
         )
-
 
 def create_station_map(user_lat, user_lon, nearest_station, avg_temp, heating_stats, vysledek_povodne):
     station_map = folium.Map(location=[user_lat, user_lon], zoom_start=14)
@@ -318,13 +306,14 @@ def create_station_map(user_lat, user_lon, nearest_station, avg_temp, heating_st
 
     return station_map
 
-
 def main():
     st.set_page_config(page_title="Meteorological Station Analyzer", page_icon="🌡️", layout="wide")
     st.title("🌡️ Meteorological Station Analyzer")
     st.markdown("Find the nearest temperature-measuring station and analyze heating engineering statistics.")
 
     st.sidebar.header("📍 Location Input")
+
+    page = st.sidebar.radio("Vyberte stránku:", ["Teplota & Povodně", "RUIAN"])
 
     with st.spinner("Loading station data..."):
         temperature_stations = load_temperature_stations()
@@ -363,9 +352,16 @@ def main():
                 elif q100: vysledek_povodne = "Q100"
                 else: vysledek_povodne = "OK"
 
+                ruian_info = None
+                try:
+                    ruian_info = ruian_api.get_building_info_from_point(user_lat, user_lon)
+                except Exception as e:
+                    ruian_info = {'status': 'error', 'message': f"Chyba při načítání RUIAN: {e}"}
+
                 st.session_state.analysis = {
                     'nearest': nearest, 'avg_temp': avg_temp,
-                    'heating_stats': heating_stats, 'povoden': vysledek_povodne
+                    'heating_stats': heating_stats, 'povoden': vysledek_povodne,
+                    'ruian': ruian_info
                 }
             else:
                 st.session_state.analysis = {'error': "No suitable station found near your location."}
@@ -378,49 +374,73 @@ def main():
             avg_temp = st.session_state.analysis['avg_temp']
             heating_stats = st.session_state.analysis['heating_stats']
             stav = st.session_state.analysis['povoden']
+            ruian_info = st.session_state.analysis.get('ruian')
 
-            st.subheader("🌊 Environmentální ESG Riziko")
-            if stav == "Q5": st.error("🔴 **EXTRÉMNÍ RIZIKO:** Budova leží v zóně 5leté vody (Q5)!")
-            elif stav == "Q20": st.warning("🟠 **VYSOKÉ RIZIKO:** Budova leží v zóně 20leté vody (Q20)!")
-            elif stav == "Q100": st.info("🟡 **ZVÝŠENÉ RIZIKO:** Budova leží v zóně 100leté vody (Q100).")
-            else: st.success("🟢 **BEZPEČNO:** Budova leží zcela mimo záplavové oblasti (Q5, Q20, Q100).")
-            st.markdown("---")
+            # ==================== STRÁNKA 1: Teplota & Povodně ====================
+            if page == "Teplota & Povodně":
+                st.subheader("🌊 Environmentální ESG Riziko")
+                if stav == "Q5": st.error("🔴 **EXTRÉMNÍ RIZIKO:** Budova leží v zóně 5leté vody (Q5)!")
+                elif stav == "Q20": st.warning("🟠 **VYSOKÉ RIZIKO:** Budova leží v zóně 20leté vody (Q20)!")
+                elif stav == "Q100": st.info("🟡 **ZVÝŠENÉ RIZIKO:** Budova leží v zóně 100leté vody (Q100).")
+                else: st.success("🟢 **BEZPEČNO:** Budova leží zcela mimo záplavové oblasti (Q5, Q20, Q100).")
+                st.markdown("---")
 
-            col1, col2, col3 = st.columns(3)
-            with col1: st.metric("📍 Nearest Station", nearest['name'])
-            with col2: st.metric("📏 Distance", f"{nearest['distance']:.2f} km")
-            with col3: st.metric("🏔️ Elevation", f"{nearest['elevation']} m")
+                col1, col2, col3 = st.columns(3)
+                with col1: st.metric("📍 Nearest Station", nearest['name'])
+                with col2: st.metric("📏 Distance", f"{nearest['distance']:.2f} km")
+                with col3: st.metric("🏔️ Elevation", f"{nearest['elevation']} m")
 
-            st.subheader("🌡️ Temperature Overview")
-            temp_col1, temp_col2 = st.columns(2)
-            with temp_col1:
-                st.metric("5-Year Average Temperature", f"{avg_temp:.2f} °C" if avg_temp is not None else "N/A")
-            with temp_col2:
-                st.metric("Design Outdoor Temperature", f"{heating_stats['design_temperature']:.1f} °C" if heating_stats and heating_stats['design_temperature'] is not None else "N/A")
+                st.subheader("🌡️ Temperature Overview")
+                temp_col1, temp_col2 = st.columns(2)
+                with temp_col1:
+                    st.metric("5-Year Average Temperature", f"{avg_temp:.2f} °C" if avg_temp is not None else "N/A")
+                with temp_col2:
+                    st.metric("Design Outdoor Temperature", f"{heating_stats['design_temperature']:.1f} °C" if heating_stats and heating_stats['design_temperature'] is not None else "N/A")
 
-            if heating_stats and heating_stats['monthly_averages']:
-                st.subheader("📊 Monthly Average Temperatures")
-                monthly_data = heating_stats['monthly_averages']
-                months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-                temps = [monthly_data.get(i+1, 0) for i in range(12)]
-                month_categories = pd.Categorical(months, categories=months, ordered=True)
-                chart_data = pd.DataFrame({'Month': month_categories, 'Temperature (°C)': temps}).set_index('Month')
-                st.bar_chart(chart_data)
+                if heating_stats and heating_stats['monthly_averages']:
+                    st.subheader("📊 Monthly Average Temperatures")
+                    monthly_data = heating_stats['monthly_averages']
+                    months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+                    temps = [monthly_data.get(i+1, 0) for i in range(12)]
+                    month_categories = pd.Categorical(months, categories=months, ordered=True)
+                    chart_data = pd.DataFrame({'Month': month_categories, 'Temperature (°C)': temps}).set_index('Month')
+                    st.bar_chart(chart_data)
 
-            if heating_stats:
-                st.subheader("⚡ Energy Report")
-                report_cols = st.columns(4)
-                with report_cols[0]: st.metric("Heating Days", f"{heating_stats['heating_days']:.0f} days/year" if heating_stats['heating_days'] is not None else "N/A")
-                with report_cols[1]: st.metric("Heating Season Avg", f"{heating_stats['heating_season_avg_temp']:.1f} °C" if heating_stats['heating_season_avg_temp'] is not None else "N/A")
-                with report_cols[2]: st.metric("Heating Degree Days", f"{heating_stats['heating_degree_days']:.0f} HDD/year" if heating_stats['heating_degree_days'] is not None else "N/A")
-                with report_cols[3]: st.metric("Design Temperature", f"{heating_stats['design_temperature']:.1f} °C" if heating_stats['design_temperature'] is not None else "N/A")
+                if heating_stats:
+                    st.subheader("⚡ Energy Report")
+                    report_cols = st.columns(4)
+                    with report_cols[0]: st.metric("Heating Days", f"{heating_stats['heating_days']:.0f} days/year" if heating_stats['heating_days'] is not None else "N/A")
+                    with report_cols[1]: st.metric("Heating Season Avg", f"{heating_stats['heating_season_avg_temp']:.1f} °C" if heating_stats['heating_season_avg_temp'] is not None else "N/A")
+                    with report_cols[2]: st.metric("Heating Degree Days", f"{heating_stats['heating_degree_days']:.0f} HDD/year" if heating_stats['heating_degree_days'] is not None else "N/A")
+                    with report_cols[3]: st.metric("Design Temperature", f"{heating_stats['design_temperature']:.1f} °C" if heating_stats['design_temperature'] is not None else "N/A")
 
-            st.subheader("📍 Location Preview")
-            create_street_view_component(user_lat, user_lon)
+                st.subheader("📍 Location Preview")
+                create_street_view_component(user_lat, user_lon)
 
-            st.subheader("🗺️ Interactive Map")
-            station_map = create_station_map(user_lat, user_lon, nearest, avg_temp, heating_stats, stav)
-            st_folium(station_map, width=800, height=500)
+                st.subheader("🗺️ Interactive Map")
+                station_map = create_station_map(user_lat, user_lon, nearest, avg_temp, heating_stats, stav)
+                st_folium(station_map, width=800, height=500)
+
+            # ==================== STRÁNKA 2: RUIAN ====================
+            if page == "RUIAN":
+                st.subheader("🏢 RUIAN data")
+                if not ruian_info:
+                    st.info("RUIAN data nejsou k dispozici.")
+                elif ruian_info.get('status') == 'error':
+                    st.error(f"❌ {ruian_info.get('message')}")
+                elif ruian_info.get('status') == 'not_found':
+                    st.warning(f"⚠️ {ruian_info.get('message')}")
+                    if 'address' in ruian_info:
+                        st.json(ruian_info['address'])
+                else:
+                    st.markdown(f"**Adresa:** {ruian_info.get('address', 'N/A')}  ")
+                    st.markdown(f"**Kód budovy:** {ruian_info.get('building_code', 'N/A')}  ")
+                    st.markdown("**Vlastnosti budovy:**")
+                    st.json(ruian_info.get('building_data', {}))
+                    st.markdown("**Surová data building:**")
+                    st.json(ruian_info.get('raw_building_data', {}))
+                    st.markdown("**Surová data adresy:**")
+                    st.json(ruian_info.get('raw_address_data', {}))
 
     st.markdown("---")
     st.markdown("*Data source: Czech Hydrometeorological Institute (CHMI) | Flood data: VÚV TGM*")
