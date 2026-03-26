@@ -1,0 +1,8 @@
+Informace k vrstvám záplavových území:
+---------------------------------------
+Prùbìh polygonù záplavových území v této vrstvì je pouze ORIENTAÈNÍ,
+jedná se o kompilaci dat jednotlivých dílèích záplavových území, 
+v rámci které byly provedeny úpravy (vyhlazení) geometrie v místì návaznosti jednotlivých èástí.
+Pro závazné informace ohlednì prùbìhu polygonù kontaktujte správce daného vodního toku nebo místì pøíslušný vodoprávní úøad.
+
+
