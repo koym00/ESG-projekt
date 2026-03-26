@@ -16,6 +16,7 @@ from streamlit_folium import st_folium
 import povodne
 import geopandas as gpd
 from shapely.geometry import Point
+import building_search
 
 # Configuration
 ZIP_PATH = "temp/Metadata/meta1.zip"
@@ -30,9 +31,8 @@ MAPA_Q20 = "temp/D02_ZaplUzemi20vody.shp"
 MAPA_Q100 = "temp/D03_ZaplUzemi100vody.shp"
 
 # Google Street View Configuration
-GOOGLE_MAPS_API_KEY = "dopln"  # Replace with your API key or leave as None for fallback
+GOOGLE_MAPS_API_KEY = "AIzaSyCiGoJ6R6ftPoO6WMdvPWuSkV7jWgecxJg"  # Replace with your API key or leave as None for fallback
 EARTH_RADIUS_KM = 6371
-
 
 @st.cache_data
 def load_temperature_stations():
@@ -53,7 +53,6 @@ def load_temperature_stations():
     except Exception as e:
         st.warning(f"Error reading temperature capability data: {e}. Proceeding without filtering.")
     return temperature_stations
-
 
 @st.cache_data
 def load_station_metadata(temperature_stations):
@@ -87,7 +86,6 @@ def load_station_metadata(temperature_stations):
         return []
     return stations
 
-
 def haversine_distance(lat1, lon1, lat2, lon2):
     lat1_rad, lon1_rad = math.radians(lat1), math.radians(lon1)
     lat2_rad, lon2_rad = math.radians(lat2), math.radians(lon2)
@@ -96,7 +94,6 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     a = math.sin(dlat / 2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2)**2
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return EARTH_RADIUS_KM * c
-
 
 def find_nearest_station(user_lat, user_lon, stations):
     if not stations: return None
@@ -109,7 +106,6 @@ def find_nearest_station(user_lat, user_lon, stations):
             nearest_station = station.copy()
             nearest_station['distance'] = distance
     return nearest_station
-
 
 def load_temperature_dataframe(wsi_code):
     zip_path = os.path.join(TEMPERATURE_DIR, f"dly-{wsi_code}-T.zip")
@@ -139,12 +135,10 @@ def load_temperature_dataframe(wsi_code):
                 return df
     except Exception: return None
 
-
 def calculate_monthly_averages(df):
     if df is None or df.empty: return {month: None for month in range(1, 13)}
     monthly_avg = df.groupby(df['Date'].dt.month)['Temperature'].mean()
     return {month: monthly_avg.get(month, None) for month in range(1, 13)}
-
 
 def calculate_heating_season_characteristics(df):
     if df is None or df.empty: return {'heating_days': None, 'heating_season_avg_temp': None}
@@ -174,7 +168,6 @@ def calculate_heating_season_characteristics(df):
     avg_heating_temp = sum(s['avg_temp'] for s in stats if s['avg_temp'] is not None) / len([s for s in stats if s['avg_temp'] is not None])
     return {'heating_days': avg_heating_days, 'heating_season_avg_temp': avg_heating_temp}
 
-
 def calculate_heating_degree_days(df):
     if df is None or df.empty: return None
     df = df.set_index('Date').sort_index()
@@ -196,7 +189,6 @@ def calculate_heating_degree_days(df):
     if len(df_hdd.index.year.unique()) == 0: return None
     return float(hdd_values.groupby(hdd_values.index.year).sum().mean())
 
-
 def calculate_design_outdoor_temperature(df):
     if df is None or df.empty: return None
     yearly_min_3day_avgs = []
@@ -206,7 +198,6 @@ def calculate_design_outdoor_temperature(df):
         yearly_min_3day_avgs.append(rolling_3day.min())
     if yearly_min_3day_avgs: return sum(yearly_min_3day_avgs) / len(yearly_min_3day_avgs)
     return None
-
 
 def calculate_heating_engineering_stats(wsi_code):
     df = load_temperature_dataframe(wsi_code)
@@ -219,7 +210,6 @@ def calculate_heating_engineering_stats(wsi_code):
         'design_temperature': calculate_design_outdoor_temperature(df)
     }
 
-
 def calculate_5year_average_temperature(wsi_code):
     df = load_temperature_dataframe(wsi_code)
     if df is None or df.empty: return None
@@ -229,26 +219,32 @@ def calculate_5year_average_temperature(wsi_code):
     if recent_data.empty: return None
     return recent_data['Temperature'].mean()
 
-
 def create_street_view_component(lat, lon):
-    if GOOGLE_MAPS_API_KEY and GOOGLE_MAPS_API_KEY != "dopln":
-        streetview_url = f"https://www.google.com/maps/embed/v1/streetview?key={GOOGLE_MAPS_API_KEY}&location={lat},{lon}"
-        components.iframe(streetview_url, width=800, height=300, scrolling=False)
+    """Create multiple street view previews from different angles"""
+    if GOOGLE_MAPS_API_KEY:
+        angles = [0, 90, 180, 270]
+        cols = st.columns(2)
+        for idx, angle in enumerate(angles):
+            with cols[idx % 2]:
+                streetview_url = f"https://www.google.com/maps/embed/v1/streetview?key={GOOGLE_MAPS_API_KEY}&location={lat},{lon}&heading={angle}"
+                components.iframe(streetview_url, width=400, height=300, scrolling=False)
+                st.caption(f"Direction: {['North', 'East', 'South', 'West'][idx]}")
     else:
+        # Fallback to multiple links
+        st.subheader("🌐 Street View Preview")
         embed_url = f"https://www.google.com/maps?q=&layer=c&cbll={lat},{lon}&cbp=12,0,0,0,5"
         fallback_url = f"https://www.google.com/maps/@?api=1&map_action=pano&viewpoint={lat},{lon}"
         st.markdown(
             f"""
-            <div style="width: 800px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
-                <div style="background: #1f2937; padding: 10px; color: white; font-weight: bold;">🌐 Street View Preview</div>
-                <iframe src="{embed_url}" width="800" height="300" style="border: none;" allowfullscreen loading="lazy"></iframe>
-                <div style="padding: 10px; background: #f8f9fa; text-align: center;">
-                    <a href="{fallback_url}" target="_blank" style="background-color: #4285f4; color: white; padding: 8px 16px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; margin-top: 6px;">🗺️ Open in Google Maps</a>
+            <div style="width: 100%; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; padding: 15px;">
+                <div style="background: #1f2937; padding: 10px; color: white; font-weight: bold; border-radius: 5px;">🌐 Street View Preview</div>
+                <div style="padding: 15px; background: #f8f9fa; text-align: center; margin-top: 10px;">
+                    <p>Google Street View preview requires API key. Click below to view on Google Maps:</p>
+                    <a href="{fallback_url}" target="_blank" style="background-color: #4285f4; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; margin-top: 6px;">🗺️ Open Street View in Google Maps</a>
                 </div>
             </div>
             """, unsafe_allow_html=True
         )
-
 
 def create_station_map(user_lat, user_lon, nearest_station, avg_temp, heating_stats, vysledek_povodne):
     station_map = folium.Map(location=[user_lat, user_lon], zoom_start=14)
@@ -318,13 +314,49 @@ def create_station_map(user_lat, user_lon, nearest_station, avg_temp, heating_st
 
     return station_map
 
-
 def main():
-    st.set_page_config(page_title="Meteorological Station Analyzer", page_icon="🌡️", layout="wide")
-    st.title("🌡️ Meteorological Station Analyzer")
-    st.markdown("Find the nearest temperature-measuring station and analyze heating engineering statistics.")
+    st.set_page_config(page_title="Zelení drancovníci", page_icon="💚", layout="wide")
+    st.title("Zelení drancovníci (bodov) aka Štítkovači z päťky")
+    st.markdown("""
+    <div style="font-size: 22px; line-height: 1.6; text-align: justify; color: #2E7D32;">
+        <b>Sme elitná jednotka, ktorá v ESG vidí viac než len 3 písmená.</b><br>
+        Naším revírom sú <b>dáta</b>, naším tempom je globálne otepľovanie a 
+        naším nepriateľom každá budova, ktorá „kúri pánubohu do okien“.
+    </div>
+    <br>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("""
+    <div style="background-color: #E8F5E9; border-left: 5px solid #2E7D32; padding: 15px; border-radius: 5px;">
+        <span style="color: #2E7D32; font-weight: bold;">Naše motto:</span> 
+        <i style="color: #1B5E20;">„Meriame všetko, čo tečie, páli alebo má súpisné číslo. Body drancujeme s nulovou uhlíkovou stopou!“</i>
+    </div>
+    <br>
+    """, unsafe_allow_html=True)
 
-    st.sidebar.header("📍 Location Input")
+    st.write("### Čo reálne stvárame?")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.write("🔍 **Registroví archeológovia**")
+        st.markdown("V katastri nehnuteľností sa hrabeme radšej než krtko v záhrade.")
+        
+        st.write("🌊 **Povodňová hliadka**")
+        st.markdown("Meriame hladinu vody skôr, než si stihnete obuť gumáky.")
+
+    with col2:
+        st.write("🏠 **Lovci štítkov**")
+        st.markdown("Odhadujeme energetickú náročnosť budov s presnosťou, z ktorej majiteľom naskakuje mráz po chrbte.")
+        
+        st.write("🔥 **Teplotní detektívi**")
+        st.markdown("Analyzujeme horúčavy tak detailne, že vieme, kedy v Prahe začnete sadiť banány.")
+
+
+
+    st.sidebar.header("🏘️ Building Search")
+
+    page = st.sidebar.radio("Vyberte stránku:", ["📊 Teplota & Povodně", "🏢 RUIAN Data"])
 
     with st.spinner("Loading station data..."):
         temperature_stations = load_temperature_stations()
@@ -334,96 +366,195 @@ def main():
         st.error("❌ Unable to load station data. Please check file paths.")
         return
 
-    st.sidebar.success(f"✅ Loaded {len(stations)} temperature-measuring stations")
-
-    if 'analysis' not in st.session_state: st.session_state.analysis = None
-    if 'last_coords' not in st.session_state: st.session_state.last_coords = (None, None)
-
-    user_lat = st.sidebar.number_input("Latitude (GEOGR2)", value=50.1254, format="%.6f", key="input_lat")
-    user_lon = st.sidebar.number_input("Longitude (GEOGR1)", value=14.4539, format="%.6f", key="input_lon")
-
-    if st.session_state.last_coords != (user_lat, user_lon):
+    # Initialize session state
+    if 'analysis' not in st.session_state: 
         st.session_state.analysis = None
-        st.session_state.last_coords = (user_lat, user_lon)
+    if 'last_building_id' not in st.session_state: 
+        st.session_state.last_building_id = None
+    if 'building_data' not in st.session_state: 
+        st.session_state.building_data = None
 
-    if st.sidebar.button("🔍 Calculate Statistics", type="primary", key="calculate"):
-        with st.spinner("Finding nearest station and calculating statistics... (Checking flood zones may take a few seconds)"):
-            nearest = find_nearest_station(user_lat, user_lon, stations)
+    # Building ID input
+    building_id = st.sidebar.number_input("🔢 ID nemovitosti (Building ID):", value=0, min_value=0, step=1, key="building_id_input")
+    
+    # Show search instructions
+    st.sidebar.info(
+        "Zadejte ID stavebního objektu z RÚIAN."
+    )
 
-            if nearest:
-                avg_temp = calculate_5year_average_temperature(nearest['wsi_code'])
-                heating_stats = calculate_heating_engineering_stats(nearest['wsi_code'])
-                
-                q5 = povodne.zkontroluj_povoden(user_lat, user_lon, MAPA_Q5)
-                q20 = povodne.zkontroluj_povoden(user_lat, user_lon, MAPA_Q20)
-                q100 = povodne.zkontroluj_povoden(user_lat, user_lon, MAPA_Q100)
-
-                if q5: vysledek_povodne = "Q5"
-                elif q20: vysledek_povodne = "Q20"
-                elif q100: vysledek_povodne = "Q100"
-                else: vysledek_povodne = "OK"
-
-                st.session_state.analysis = {
-                    'nearest': nearest, 'avg_temp': avg_temp,
-                    'heating_stats': heating_stats, 'povoden': vysledek_povodne
-                }
-            else:
-                st.session_state.analysis = {'error': "No suitable station found near your location."}
-
-    if st.session_state.analysis:
-        if 'error' in st.session_state.analysis:
-            st.error(f"❌ {st.session_state.analysis['error']}")
+    if st.sidebar.button("🔍 Vyhledat budovu", type="primary", key="search_building"):
+        if building_id == 0:
+            st.sidebar.error("❌ Prosím zadejte platné ID budovy")
         else:
-            nearest = st.session_state.analysis['nearest']
-            avg_temp = st.session_state.analysis['avg_temp']
-            heating_stats = st.session_state.analysis['heating_stats']
-            stav = st.session_state.analysis['povoden']
+            with st.spinner("Vyhledávám budovu v RÚIAN..."):
+                # Get FULL building data using exact same extraction as register.py
+                building_info = building_search.get_building_full_data_by_id(int(building_id))
+                
+                if building_info['status'] == 'ok':
+                    st.session_state.building_data = building_info
+                    st.session_state.analysis = None  # Reset analysis for new building
+                    st.session_state.last_building_id = building_id
+                    st.sidebar.success(f"✅ Budova nalezena: {building_info['nadrazene_prvky'].get('Obec', 'N/A')}")
+                else:
+                    st.sidebar.error(f"❌ {building_info['message']}")
+                    st.session_state.building_data = None
 
+    # If building is found, show additional options
+    if st.session_state.building_data and st.session_state.building_data['status'] == 'ok':
+        building_data = st.session_state.building_data
+        user_lat = building_data['geometrie']['lat']
+        user_lon = building_data['geometrie']['lon']
+        
+        st.sidebar.markdown(f"**Vybraná budova:** {building_data['nadrazene_prvky'].get('Obec', 'N/A')}")
+        st.sidebar.markdown(f"📍 Souřadnice: {user_lat:.4f}, {user_lon:.4f}")
+        
+        if st.sidebar.button("📊 Spočítej statistiku", type="primary", key="calculate"):
+            with st.spinner("Vyhledávám nejbližší stanici a počítám statistiku... (Kontrola povodní může chvíli trvat)"):
+                nearest = find_nearest_station(user_lat, user_lon, stations)
+
+                if nearest:
+                    avg_temp = calculate_5year_average_temperature(nearest['wsi_code'])
+                    heating_stats = calculate_heating_engineering_stats(nearest['wsi_code'])
+                    
+                    q5 = povodne.zkontroluj_povoden(user_lat, user_lon, MAPA_Q5)
+                    q20 = povodne.zkontroluj_povoden(user_lat, user_lon, MAPA_Q20)
+                    q100 = povodne.zkontroluj_povoden(user_lat, user_lon, MAPA_Q100)
+
+                    if q5: vysledek_povodne = "Q5"
+                    elif q20: vysledek_povodne = "Q20"
+                    elif q100: vysledek_povodne = "Q100"
+                    else: vysledek_povodne = "OK"
+
+                    ruian_info = None
+                    try:
+                        ruian_info = ruian_api.get_building_info_from_point(user_lat, user_lon)
+                    except Exception as e:
+                        ruian_info = {'status': 'error', 'message': f"Chyba při načítání RUIAN: {e}"}
+
+                    st.session_state.analysis = {
+                        'nearest': nearest, 'avg_temp': avg_temp,
+                        'heating_stats': heating_stats, 'povoden': vysledek_povodne,
+                        'ruian': ruian_info, 'lat': user_lat, 'lon': user_lon
+                    }
+                else:
+                    st.error("❌ No suitable station found near your location.")
+                    st.session_state.analysis = None
+
+    # Display analysis results
+    if st.session_state.analysis:
+        nearest = st.session_state.analysis['nearest']
+        avg_temp = st.session_state.analysis['avg_temp']
+        heating_stats = st.session_state.analysis['heating_stats']
+        stav = st.session_state.analysis['povoden']
+        ruian_info = st.session_state.analysis.get('ruian')
+        user_lat = st.session_state.analysis['lat']
+        user_lon = st.session_state.analysis['lon']
+
+        # ==================== STRÁNKA 1: Teplota & Povodně ====================
+        if page == "📊 Teplota & Povodně":
             st.subheader("🌊 Environmentální ESG Riziko")
-            if stav == "Q5": st.error("🔴 **EXTRÉMNÍ RIZIKO:** Budova leží v zóně 5leté vody (Q5)!")
-            elif stav == "Q20": st.warning("🟠 **VYSOKÉ RIZIKO:** Budova leží v zóně 20leté vody (Q20)!")
-            elif stav == "Q100": st.info("🟡 **ZVÝŠENÉ RIZIKO:** Budova leží v zóně 100leté vody (Q100).")
-            else: st.success("🟢 **BEZPEČNO:** Budova leží zcela mimo záplavové oblasti (Q5, Q20, Q100).")
+            if stav == "Q5": 
+                st.error("🔴 **EXTRÉMNÍ RIZIKO:** Budova leží v zóně 5leté vody (Q5)!")
+            elif stav == "Q20": 
+                st.warning("🟠 **VYSOKÉ RIZIKO:** Budova leží v zóně 20leté vody (Q20)!")
+            elif stav == "Q100": 
+                st.info("🟡 **ZVÝŠENÉ RIZIKO:** Budova leží v zóně 100leté vody (Q100).")
+            else: 
+                st.success("🟢 **BEZPEČNO:** Budova leží zcela mimo záplavové oblasti (Q5, Q20, Q100).")
             st.markdown("---")
 
             col1, col2, col3 = st.columns(3)
-            with col1: st.metric("📍 Nearest Station", nearest['name'])
-            with col2: st.metric("📏 Distance", f"{nearest['distance']:.2f} km")
-            with col3: st.metric("🏔️ Elevation", f"{nearest['elevation']} m")
+            with col1: 
+                st.metric("📍 Nejbližší meteostanice", nearest['name'])
+            with col2: 
+                st.metric("📏 Vzdálenost", f"{nearest['distance']:.2f} km")
+            with col3: 
+                st.metric("🏔️ Nadmořská výška", f"{nearest['elevation']} m")
 
-            st.subheader("🌡️ Temperature Overview")
+            st.subheader("🌡️ Přehled teplot")
             temp_col1, temp_col2 = st.columns(2)
             with temp_col1:
-                st.metric("5-Year Average Temperature", f"{avg_temp:.2f} °C" if avg_temp is not None else "N/A")
+                st.metric("5leté průměr teploty", f"{avg_temp:.2f} °C" if avg_temp is not None else "N/A")
             with temp_col2:
-                st.metric("Design Outdoor Temperature", f"{heating_stats['design_temperature']:.1f} °C" if heating_stats and heating_stats['design_temperature'] is not None else "N/A")
+                st.metric("Design venkovní teplota", f"{heating_stats['design_temperature']:.1f} °C" if heating_stats and heating_stats['design_temperature'] is not None else "N/A")
 
             if heating_stats and heating_stats['monthly_averages']:
-                st.subheader("📊 Monthly Average Temperatures")
+                st.subheader("📊 Průměrné měsíční teploty")
                 monthly_data = heating_stats['monthly_averages']
-                months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+                months = ['Leden', 'Únor', 'Březen', 'Duben', 'Květen', 'Červen', 'Červenec', 'Srpen', 'Září', 'Říjen', 'Listopad', 'Prosinec']
                 temps = [monthly_data.get(i+1, 0) for i in range(12)]
                 month_categories = pd.Categorical(months, categories=months, ordered=True)
-                chart_data = pd.DataFrame({'Month': month_categories, 'Temperature (°C)': temps}).set_index('Month')
+                chart_data = pd.DataFrame({'Měsíc': month_categories, 'Teplota (°C)': temps}).set_index('Měsíc')
                 st.bar_chart(chart_data)
 
             if heating_stats:
-                st.subheader("⚡ Energy Report")
+                st.subheader("⚡ Energetická zpráva")
                 report_cols = st.columns(4)
-                with report_cols[0]: st.metric("Heating Days", f"{heating_stats['heating_days']:.0f} days/year" if heating_stats['heating_days'] is not None else "N/A")
-                with report_cols[1]: st.metric("Heating Season Avg", f"{heating_stats['heating_season_avg_temp']:.1f} °C" if heating_stats['heating_season_avg_temp'] is not None else "N/A")
-                with report_cols[2]: st.metric("Heating Degree Days", f"{heating_stats['heating_degree_days']:.0f} HDD/year" if heating_stats['heating_degree_days'] is not None else "N/A")
-                with report_cols[3]: st.metric("Design Temperature", f"{heating_stats['design_temperature']:.1f} °C" if heating_stats['design_temperature'] is not None else "N/A")
+                with report_cols[0]: 
+                    st.metric("Topné dny", f"{heating_stats['heating_days']:.0f} dnů/rok" if heating_stats['heating_days'] is not None else "N/A")
+                with report_cols[1]: 
+                    st.metric("Topná sezóna - průměr", f"{heating_stats['heating_season_avg_temp']:.1f} °C" if heating_stats['heating_season_avg_temp'] is not None else "N/A")
+                with report_cols[2]: 
+                    st.metric("HDD", f"{heating_stats['heating_degree_days']:.0f} HDD/rok" if heating_stats['heating_degree_days'] is not None else "N/A")
+                with report_cols[3]: 
+                    st.metric("Návrhová teplota", f"{heating_stats['design_temperature']:.1f} °C" if heating_stats['design_temperature'] is not None else "N/A")
 
-            st.subheader("📍 Location Preview")
+            st.subheader("📍 Náhled polohy")
             create_street_view_component(user_lat, user_lon)
 
-            st.subheader("🗺️ Interactive Map")
+            st.subheader("🗺️ Interaktivní mapa")
             station_map = create_station_map(user_lat, user_lon, nearest, avg_temp, heating_stats, stav)
             st_folium(station_map, width=800, height=500)
 
+        # ==================== STRÁNKA 2: RUIAN ====================
+        elif page == "🏢 RUIAN Data":
+            st.subheader("🏢 Data z RÚIAN")
+            
+            # Display hierarchical elements (nadrazené prvky)
+            st.markdown("#### 🗺️ Nadřazené územní prvky")
+            nadrazene_cols = st.columns(3)
+            for idx, (key, value) in enumerate(building_data['nadrazene_prvky'].items()):
+                with nadrazene_cols[idx % 3]:
+                    st.markdown(f"**{key}**")
+                    st.markdown(f"`{value if value else '---'}`")
+            
+            st.markdown("---")
+            
+            # Display technical attributes (technické-ekonomické atributy)
+            st.markdown("#### ⚙️ Technické a ekonomické atributy")
+            tech_data_to_display = {k: v for k, v in building_data['technicko_ekonomicke_atributy'].items() if v}
+            
+            if tech_data_to_display:
+                tech_cols = st.columns(2)
+                for idx, (key, value) in enumerate(tech_data_to_display.items()):
+                    with tech_cols[idx % 2]:
+                        st.markdown(f"**{key}**")
+                        st.markdown(f"{value}")
+            else:
+                st.info("Nejsou dostupné technické atributy.")
+            
+            st.markdown("---")
+            
+            # Display geometry (coords in both systems)
+            st.markdown("#### 📍 Geometrie a souřadnice")
+            geom = building_data['geometrie']
+            geom_col1, geom_col2 = st.columns(2)
+            with geom_col1:
+                st.markdown("**S-JTSK (Státní systém)**")
+                st.code(f"Y: {geom['y_jtsk']}\nX: {geom['x_jtsk']}")
+            with geom_col2:
+                st.markdown("**WGS84 (GPS)**")
+                st.code(f"Lat: {geom['lat']:.8f}\nLon: {geom['lon']:.8f}")
+            
+            st.markdown("---")
+            
+            # Link to RUIAN detail page
+            st.markdown(f"🔗 [Otevřít v RÚIAN]({building_data['odkaz']}) | ID: `{building_data['building_id']}`")
+    #else:
+        #st.info("👈 Zadejte ID budovy a klikněte na 'Vyhledat budovu' a pak následně na 'Spočítej statistiku' pro podrobnější analýzu.")
+
     st.markdown("---")
-    st.markdown("*Data source: Czech Hydrometeorological Institute (CHMI) | Flood data: VÚV TGM*")
+    st.markdown("*Zdroj dat: RÚIAN - Český úřad zeměměřický a katastrální (ČÚZK) | Český hydrometeorologický ústav (ČHMÚ) | Data o povodních: VÚV TGM*")
 
 if __name__ == "__main__":
     main()
