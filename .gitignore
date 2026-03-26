@@ -1,0 +1,5 @@
+temp/
+temp/
+__pycache__/
+*.zip
+*.csv
