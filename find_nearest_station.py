@@ -19,11 +19,11 @@ import webbrowser
 import pandas as pd
 
 # Configuration (OPRAVENO PRO MAC)
-ZIP_PATH = "D:\VŠE\ESG_project\ESG-projekt\temp\Metadata\meta1.zip"
+ZIP_PATH = "C:\temp\Metadata\meta1.zip"
 CSV_FILENAME = "meta1.csv"
-META2_ZIP_PATH = "D:\VŠE\ESG_project\ESG-projekt\temp\Metadata\meta2.zip"
+META2_ZIP_PATH = "C:\temp\Metadata\meta2.zip"
 META2_CSV_FILENAME = "meta2.csv"
-TEMPERATURE_DIR = "D:\VŠE\ESG_project\ESG-projekt\temp\Data\Temperature"
+TEMPERATURE_DIR = "C:\temp\Data\Temperature"
 
 # Earth's radius in kilometers
 EARTH_RADIUS_KM = 6371

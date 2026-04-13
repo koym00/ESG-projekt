@@ -20,7 +20,7 @@ from typing import List
 
 # Configuration
 INDEX_URL = "https://opendata.chmi.cz/meteorology/climate/historical_csv/metadata/"
-TEMP_DIR = "temp/Metadata"
+TEMP_DIR = "C:\temp\Metadata"
 
 # User-Agent header to avoid being blocked
 HEADERS = {

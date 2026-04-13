@@ -18,7 +18,7 @@ MAPY_K_STAZENI = {
     "Q100": "https://heis.vuv.cz/data/webmap/datovesady/isvs/ZaplavUzemi/E_ISVS$ZAPL_UZ100.zip"
 }
 
-TEMP_DIR = "temp"
+TEMP_DIR = r"C:\temp\Data"
 
 # Tváříme se jako běžný prohlížeč, aby nás server VÚV nezablokoval
 HEADERS = {
