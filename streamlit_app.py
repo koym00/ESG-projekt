@@ -467,10 +467,10 @@ def main():
     epc_model_package = load_epc_model()
 
     if not st.session_state.analysis:
-        st.title("Štítkovači z päťky")
+        st.title("Team 5 - ESG Risk")
         st.markdown("""
         <div style="font-size: 22px; line-height: 1.6; text-align: justify; color: #4B0082;">
-            <b>Sme elitná jednotka, ktorá v ESG vidí viac než len 3 písmená.</b>
+            <b>Markéta Hončíková, Matej Koyš, Erik Seidl a Anna Spilková</b>
         </div>
         <br>
         """, unsafe_allow_html=True)
