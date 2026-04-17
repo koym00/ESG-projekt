@@ -12,7 +12,7 @@ from sklearn.metrics import mean_squared_error, r2_score
 
 
 base_path = os.path.dirname(os.path.abspath(__file__))
-file_path = os.path.join(base_path, 'data_stitky_EPC_with_ruian.csv')
+file_path = os.path.join(base_path, 'data_stitky_EPC_enriched.csv')
 
 print(f"Looking for data at: {file_path}")
 
@@ -29,6 +29,11 @@ epc_map = {'A': 1, 'B': 2, 'C': 3, 'D': 4, 'E': 5, 'F': 6, 'G': 7}
 
 df = df.dropna(subset=['Energy Performance Certificate (EPC)'])
 df['target'] = df['Energy Performance Certificate (EPC)'].map(epc_map)
+
+# Převedení na datum a extrakce roku
+df['Rok dokončení'] = pd.to_datetime(df['Datum dokončení'], errors='coerce').dt.year
+# Vyplnění chybějících hodnot (např. mediánem)
+df['Rok dokončení'] = df['Rok dokončení'].fillna(df['Rok dokončení'].median())
 
 # Distribuce v populaci - rok 2024
 epc_probabilities = {
@@ -55,7 +60,7 @@ def get_epc_label_probabilistic(score, probabilities):
         return inv_map[rounded]
 
 
-numeric_features = ['Počet podlaží', 'Počet bytů', 'Zastavěná plocha [m2]']
+numeric_features = ['Počet podlaží', 'Počet bytů', 'Zastavěná plocha [m2]', 'heating_days', 'Rok dokončení']
 categorical_features = ['Druh svislé nosné konstrukce', 'Vybavení výtahem', 'Způsob vytápění']
 
 
@@ -64,13 +69,24 @@ for col in numeric_features:
 for col in categorical_features:
     df[col] = df[col].astype(str).fillna('Unknown')
 
+# 1. Nahrazení textu "Nezjištěno" a prázdných hodnot za NaN
+df = df.replace(['Nezjištěno', 'nezjištěno', 'Unknown'], np.nan)
+
+# 2. Definice sloupců, které model používá
+categorical_features = ['Druh svislé nosné konstrukce', 'Vybavení výtahem', 'Způsob vytápění']
+numeric_features = ['Počet podlaží', 'Počet bytů', 'Zastavěná plocha [m2]', 'heating_days', 'Rok dokončení']
+
+# 3. Odstranění řádků, které mají v těchto klíčových sloupcích NaN (tedy i původní "Nezjištěno")
+print(f"Původní počet řádků: {len(df)}")
+df = df.dropna(subset=categorical_features + numeric_features)
+print(f"Počet řádků po očištění od 'Nezjištěno': {len(df)}")
 
 
 ### Modýlek
 X = df[numeric_features + categorical_features]
 y = df['target']
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
 preprocessor = ColumnTransformer(
     transformers=[
